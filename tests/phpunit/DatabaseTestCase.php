@@ -2,7 +2,6 @@
 
 namespace SMW\Tests;
 
-use BacklinkCache;
 use HashBagOStuff;
 use MediaWiki\MediaWikiServices;
 use ObjectCache;
@@ -114,7 +113,9 @@ abstract class DatabaseTestCase extends \PHPUnit_Framework_TestCase {
 				->method( 'getPrefixedDBkey' )
 				->willReturn( 'Badtitle/Dummy title for BacklinkCache reset' );
 
-			BacklinkCacheFactory::getBacklinkCache( $title )->clear();
+			// BacklinkCache->Clear() removed at MW 1.40: "services are already reset between tests."
+			// https://github.com/wikimedia/mediawiki/commit/2249870a0f3725c70a8cba3b9eb0f16350b68245
+			//MediaWikiServices::getInstance()->getBacklinkCacheFactory()->getBacklinkCache( $title )->clear();
 		}
 
 		$this->testEnvironment = new TestEnvironment();
