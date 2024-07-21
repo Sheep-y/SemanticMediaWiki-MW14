@@ -50,13 +50,9 @@ class RevisionGuard {
 	 * @return boolean
 	 */
 	public function isSkippableUpdate( Title $title, &$latestRevID = null ) {
-		// MW 1.34+
-		// https://github.com/wikimedia/mediawiki/commit/b65e77a385c7423ce03a4d21c141d96c28291a60
-		if ( defined( 'Title::READ_LATEST' ) && Title::GAID_FOR_UPDATE == 512 ) {
-			$flag = Title::READ_LATEST;
-		} else {
-			$flag = Title::GAID_FOR_UPDATE;
-		}
+		// MW 1.42+ GAID_FOR_UPDATE removed.  READ_LATEST existed since Aug 2012.
+		// https://github.com/wikimedia/mediawiki/commit/854f345e60159cda3f33d41056f36e7e1f718d1b
+		$flag = IDBAccessObject::READ_LATEST;
 
 		if ( $latestRevID === null ) {
 			$latestRevID = $title->getLatestRevID( $flag );
