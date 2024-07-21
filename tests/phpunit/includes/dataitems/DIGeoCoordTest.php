@@ -11,7 +11,7 @@ use SMWDIGeoCoord;
  *
  * @author Jeroen De Dauw < jeroendedauw@gmail.com >
  */
-class SMWDIGeoCoordTest extends \PHPUnit_Framework_TestCase {
+class DIGeoCoordTest extends \PHPUnit_Framework_TestCase {
 
 	use PHPUnitCompat;
 
