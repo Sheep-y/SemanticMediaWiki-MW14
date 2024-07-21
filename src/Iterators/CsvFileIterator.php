@@ -33,9 +33,15 @@ class CsvFileIterator implements Iterator, Countable {
 	private $parseHeader;
 
 	/**
-	 * @var []
+	 * @var array|null
 	 */
-	private $header = [];
+	private $header = null;
+
+	/**
+	 * @since 4.2
+	 * @var array|null
+	 */
+	private $currentElement = null;
 
 	/**
 	 * @var string
@@ -75,6 +81,8 @@ class CsvFileIterator implements Iterator, Countable {
 		$this->parseHeader = $parseHeader;
 		$this->delimiter = $delimiter;
 		$this->length = $length;
+
+		$this->rewind();
 	}
 
 	/**
@@ -90,15 +98,11 @@ class CsvFileIterator implements Iterator, Countable {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function count() {
+	public function count() : int {
 		if ( $this->count ) {
 			return $this->count;
 		}
 
-		// https://stackoverflow.com/questions/21447329/how-can-i-get-the-total-number-of-rows-in-a-csv-file-with-php
-		$this->file->seek( PHP_INT_MAX );
-		$this->count = $this->file->key() + 1;
-		$this->file->rewind();
 
 		return $this->count;
 	}
@@ -109,7 +113,7 @@ class CsvFileIterator implements Iterator, Countable {
 	 * @return []
 	 */
 	public function getHeader() {
-		return $this->header;
+		return $this->header ?? [];
 	}
 
 	/**
@@ -119,65 +123,63 @@ class CsvFileIterator implements Iterator, Countable {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function rewind() {
+	public function rewind() : void {
 		$this->key = 0;
+		// Can't rewind when iterating, have to get count earlier.
+		// https://stackoverflow.com/questions/21447329/how-can-i-get-the-total-number-of-rows-in-a-csv-file-with-php
+		$this->file->seek( PHP_INT_MAX );
+		$this->count = $this->file->key() + ( $this->parseHeader ? 0 : 1 );
 		$this->file->rewind();
+		if ( $this->parseHeader ) {
+			$this->header = $this->file->fgetcsv( $this->delimiter );
+		}
+		$this->currentElement = $this->file->fgetcsv( $this->delimiter );
 	}
 
 	/**
-	 * Returns the current CSV row as a 2 dimensional array
+	 * Returns the current CSV row.  False if reading past EOF.
 	 *
 	 * @since 3.0
 	 *
 	 * {@inheritDoc}
 	 */
-	public function current() {
-		// First iteration to match the header
-		if ( $this->parseHeader && $this->key == 0 ) {
-			$this->header = $this->file->fgetcsv( $this->delimiter );
-		}
-
-		$currentElement = $this->file->fgetcsv( $this->delimiter );
-		$this->key++;
-
-		return $currentElement;
+	public function current() : mixed {
+		return $this->currentElement;
 	}
 
 	/**
 	 * Returns the current row number.
+	 * First row (after header) is row 0.
 	 *
 	 * @since 3.0
 	 *
 	 * {@inheritDoc}
 	 */
-	public function key() {
+	public function key() : int {
 		return $this->key;
 	}
 
 	/**
-	 * Checks if the end of file is reached.
+	 * Read next line
 	 *
 	 * @since 3.0
 	 *
 	 * {@inheritDoc}
 	 */
-	public function next() {
-		return !$this->file->eof();
+	public function next() : void {
+		$this->key++;
+		$this->currentElement = $this->file->fgetcsv( $this->delimiter );
 	}
 
 	/**
-	 * Checks if the next row is a valid row.
+	 * Checks if there are more rows.
 	 *
 	 * @since 3.0
 	 *
 	 * {@inheritDoc}
 	 */
-	public function valid() {
-		if ( $this->next() ) {
-			return true;
-		}
-
-		return false;
+	public function valid() : bool {
+		return !$this->file->eof();
 	}
 
 }
