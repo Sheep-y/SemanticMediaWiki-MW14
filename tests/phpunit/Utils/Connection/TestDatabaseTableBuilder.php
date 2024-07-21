@@ -162,10 +162,14 @@ class TestDatabaseTableBuilder {
 		if ( $dbConnection->getType() === 'mysql' && method_exists( $dbConnection, 'listViews' ) ) {
 
 			# bug 43571: cannot clone VIEWs under MySQL
-			$views = $dbConnection->listViews(
-				self::$MWDB_PREFIX,
-				__METHOD__
-			);
+			if ( version_compare( MW_VERSION, '1.42', '<' ) ) {
+				$views = $dbConnection->listViews(
+					self::$MWDB_PREFIX,
+					__METHOD__
+				);
+			} else {
+				$views = $this->listViews( $dbConnection, self::$MWDB_PREFIX );
+			}
 
 			$tables = array_diff( $tables, $views );
 		}
@@ -181,6 +185,27 @@ class TestDatabaseTableBuilder {
 		}
 
 		return $tables;
+	}
+
+	/**
+	 * DatabaseMySQL->listViews were removed in MW 1.42, reproducing the method here.
+	 * https://gerrit.wikimedia.org/r/c/mediawiki/core/+/982946
+	 */
+	private function listViews ( $dbConnection, $prefix ) {
+		$qb = $dbConnection->newSelectQueryBuilder()
+			->select( 'table_name' )
+			->from( 'information_schema.views' )
+			->where( [ 'table_schema' => $dbConnection->getDBname() ] )
+			->caller( __METHOD__ );
+
+		if ( $prefix !== null && $prefix !== '' ) {
+			$qb->andWhere( $dbConnection->expr(
+				'table_name',
+				\Wikimedia\Rdbms\IExpression::LIKE,
+				new \Wikimedia\Rdbms\LikeValue( $prefix, $dbConnection->anyString() )
+			) );
+		}
+		return $qb->fetchFieldValues();
 	}
 
 	private function setupDatabaseTables() {
