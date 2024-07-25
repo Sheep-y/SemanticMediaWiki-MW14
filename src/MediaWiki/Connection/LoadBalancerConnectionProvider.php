@@ -96,7 +96,7 @@ class LoadBalancerConnectionProvider implements IConnectionProvider {
 			$this->initLoadBalancer( $this->wiki );
 		}
 
-		if ( $this->asConnectionRef ) {
+		if ( $this->asConnectionRef && version_compare( MW_VERSION, '1.39', '<' ) ) {
 			$this->connection = $this->loadBalancer->getConnectionRef( $this->id, $this->groups, $this->wiki );
 		} else {
 			$this->connection = $this->loadBalancer->getConnection( $this->id, $this->groups, $this->wiki );
