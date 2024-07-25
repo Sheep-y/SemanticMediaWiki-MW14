@@ -43,6 +43,11 @@ class SetParserFunction {
 	private $templateRenderer;
 
 	/**
+	 * @var InTextAnnotationParser
+	 */
+	private $inTextParser;
+
+	/**
 	 * @var StripMarkerDecoder
 	 */
 	private $stripMarkerDecoder;
@@ -88,6 +93,8 @@ class SetParserFunction {
 	public function parse( ParserParameterProcessor $parameters ) {
 		$count = 0;
 		$template = '';
+		$html = '';
+		$glue = '';
 		$subject = $this->parserData->getSemanticData()->getSubject();
 
 		$parametersToArray = $parameters->toArray();
@@ -95,12 +102,18 @@ class SetParserFunction {
 		if ( isset( $parametersToArray['template'] ) ) {
 			$template = $parametersToArray['template'][0];
 			unset( $parametersToArray['template'] );
+			if ( !empty( $template ) && $template[0] === '#' && mb_strlen( $template ) > 1 ) {
+				$glue = mb_substr( $template, 1 );
+				$template = '#';
+			}
 		}
 
 		$annotationProcessor = new AnnotationProcessor(
 			$this->parserData->getSemanticData(),
 			DataValueFactory::getInstance()
 		);
+
+		$lastProperty = array_key_last( $parametersToArray );
 
 		foreach ( $parametersToArray as $property => $values ) {
 
@@ -125,14 +138,23 @@ class SetParserFunction {
 
 				$this->messageFormatter->addFromArray( $dataValue->getErrors() );
 
-				$this->addFieldsToTemplate(
-					$template,
-					$dataValue,
-					$property,
-					$value,
-					$last == $key,
-					$count
-				);
+				if ( $dataValue->isValid() ) {
+					if ( $template === '#' ) {
+						$html .= $dataValue->getShortWikitext( true );
+						if ( $last !== $key || $property !== $lastProperty ) {
+							$html .= $glue;
+						}
+					} else {
+						$this->addFieldsToTemplate(
+							$template,
+							$dataValue,
+							$property,
+							$value,
+							$last == $key,
+							$count
+						);
+					}
+				}
 			}
 		}
 
@@ -140,15 +162,18 @@ class SetParserFunction {
 
 		$annotationProcessor->release();
 
-		$html = $this->templateRenderer->render() . $this->messageFormatter
-			->addFromArray( $parameters->getErrors() )
-			->getHtml();
+		if ( $template !== '#' ) {
+			$html = $this->templateRenderer->render();
+		}
+		$error = $this->messageFormatter
+				->addFromArray( $parameters->getErrors() )
+				->getHtml();
 
-		return [ $html, 'noparse' => $template === '', 'isHTML' => false ];
+		return [ $html . $error, 'noparse' => $template === '', 'isHTML' => false ];
 	}
 
 	private function addFieldsToTemplate( $template, $dataValue, $property, $value, $isLastElement, &$count ) {
-		if ( $template === '' || !$dataValue->isValid() ) {
+		if ( $template === '' ) {
 			return '';
 		}
 
@@ -158,5 +183,4 @@ class SetParserFunction {
 		$this->templateRenderer->addField( '#', $count++ );
 		$this->templateRenderer->packFieldsForTemplate( $template );
 	}
-
 }
